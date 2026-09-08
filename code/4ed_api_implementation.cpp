@@ -3035,6 +3035,7 @@ text_layout_line_on_screen(Application_Links *app, Text_Layout_ID layout_id, i64
                                                              line_number_it);
                 result.max += line.height;
                 if (line_number_it == line_number){
+                    result.max -= line.bottom_padding;
                     break;
                 }
                 result.min = result.max;
