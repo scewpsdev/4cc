@@ -18,6 +18,7 @@ GL_FUNC(glDebugMessageControl, void, (GLenum source, GLenum type, GLenum severit
 GL_FUNC(glDebugMessageCallback, void, (GLDEBUGPROC callback, const void *userParam))
 
 GL_FUNC(glBlendFuncSeparate, void, (GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dstAlpha))
+GL_FUNC(glBlendColor, void, (GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha))
 
 GL_FUNC(glGenVertexArrays,    void, (GLsizei n, GLuint *arrays))
 GL_FUNC(glBindVertexArray,    void, (GLuint array))
