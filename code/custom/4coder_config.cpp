@@ -1548,6 +1548,9 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, i32 override_fon
     else if (string_match(aa_mode_string, str8_lit("1bit"))){
         aa_mode = FaceAntialiasingMode_1BitMono;
     }
+    else if (string_match(aa_mode_string, str8_lit("cleartype"))) {
+        aa_mode = FaceAntialiasingMode_ClearType;
+    }
     description.parameters.aa_mode = aa_mode;
     
     description.font.file_name = default_font_name;

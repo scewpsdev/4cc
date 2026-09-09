@@ -504,6 +504,7 @@ typedef u32 Face_Antialiasing_Mode;
 enum{
     FaceAntialiasingMode_8BitMono,
     FaceAntialiasingMode_1BitMono,
+    FaceAntialiasingMode_ClearType,
 };
 
 api(custom)

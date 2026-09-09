@@ -18,18 +18,18 @@
 #define internal static
 
 internal u32
-ft__load_flags(b32 use_hinting){
+ft__load_flags(b32 use_hinting, Face_Antialiasing_Mode aa_mode){
     u32 ft_flags = FT_LOAD_RENDER;
-    if (use_hinting){
-        // NOTE(inso): FT_LOAD_TARGET_LIGHT does hinting only vertically, which looks nicer imo
-        // maybe it could be exposed as an option for hinting, instead of just on/off.
-        //ft_flags |= (FT_LOAD_FORCE_AUTOHINT | FT_LOAD_TARGET_LIGHT);
-        ft_flags |= FT_LOAD_FORCE_AUTOHINT | FT_LOAD_TARGET_LCD;
-    }
-    else{
-        //ft_flags |= (FT_LOAD_NO_AUTOHINT | FT_LOAD_NO_HINTING);
-        ft_flags |= FT_LOAD_NO_AUTOHINT | FT_LOAD_TARGET_LCD;
-    }
+
+    if (use_hinting) ft_flags |= FT_LOAD_FORCE_AUTOHINT;
+    else ft_flags |= FT_LOAD_NO_AUTOHINT | FT_LOAD_NO_AUTOHINT;
+
+    // NOTE(inso): FT_LOAD_TARGET_LIGHT does hinting only vertically, which looks nicer imo
+    // maybe it could be exposed as an option for hinting, instead of just on/off.
+
+    if (aa_mode == FaceAntialiasingMode_ClearType) ft_flags |= FT_LOAD_TARGET_LCD;
+    else if (use_hinting) ft_flags |= FT_LOAD_TARGET_LIGHT;
+
     return(ft_flags);
 }
 
@@ -193,7 +193,9 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
     FT_Library ft;
     FT_Init_FreeType(&ft);
 
-    FT_Library_SetLcdFilter(ft, FT_LCD_FILTER_DEFAULT);
+    if (description->parameters.aa_mode == FaceAntialiasingMode_ClearType) {
+        FT_Library_SetLcdFilter(ft, FT_LCD_FILTER_DEFAULT);
+    }
     
     FT_Face ft_face;
     FT_Error error = FT_New_Face(ft, (char*)file_name.str, 0, &ft_face);
@@ -251,7 +253,7 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         };
         Bitmap *glyph_bitmaps = push_array(arena, Bitmap, index_count);
         
-        u32 load_flags = ft__load_flags(hinting);
+        u32 load_flags = ft__load_flags(hinting, description->parameters.aa_mode);
         for (u16 i = 0; i < index_count; i += 1){
             Bitmap *bitmap = &glyph_bitmaps[i];
             
@@ -342,6 +344,7 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
             }
         }
         
+        // NOTE(scewps) use 16 * 3 white pixels in case we are using LCD RGB
         u8 white_data[48] = {};
         for (u32 i = 0; i < 48; i++)
             white_data[i] = 0xFF;
@@ -359,7 +362,7 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         }
         ft__bad_rect_store_finish(&pack);
         
-        Texture_Kind texture_kind = TextureKind_RGB;
+        Texture_Kind texture_kind = face->description.parameters.aa_mode == FaceAntialiasingMode_ClearType ? TextureKind_RGB : TextureKind_Mono;
         u32 texture = graphics_get_texture(pack.dim, texture_kind);
         
         /* NOTE simon (06/01/25): This assumes that every platforms don't use 0 as a valid texture id.

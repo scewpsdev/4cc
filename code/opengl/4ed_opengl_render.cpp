@@ -112,6 +112,7 @@ char *gl__fragment = R"foo(
         smooth in float half_thickness;
 
         uniform sampler2DArray sampler;
+        uniform float use_clear_type;
 
         layout (location = 0, index = 0) out vec4 out_color;
         layout (location = 0, index = 1) out vec4 out_mask;
@@ -126,21 +127,41 @@ char *gl__fragment = R"foo(
         float has_thickness = (step(0.49, half_thickness));
         float does_not_have_thickness = 1.0 - has_thickness;
 
-        vec3 sample_value = texture(sampler, uvw).rgb;
-        sample_value *= does_not_have_thickness;
+        if (use_clear_type > 0.5)
+        {
+            vec3 sample_value = texture(sampler, uvw).rgb;
+            sample_value *= does_not_have_thickness;
 
-        vec2 center = uvw.xy;
-        float roundness = uvw.z;
-        float sd = rectangle_sd(xy - center, adjusted_half_dim);
-        sd = sd - roundness;
-        sd = abs(sd + half_thickness) - half_thickness;
-        float shape_value = 1.0 - smoothstep(-1.0, 0.0, sd);
-        shape_value *= has_thickness;
+            vec2 center = uvw.xy;
+            float roundness = uvw.z;
+            float sd = rectangle_sd(xy - center, adjusted_half_dim);
+            sd = sd - roundness;
+            sd = abs(sd + half_thickness) - half_thickness;
+            float shape_value = 1.0 - smoothstep(-1.0, 0.0, sd);
+            shape_value *= has_thickness;
 
-        vec3 final_mask = clamp(sample_value + vec3(shape_value), 0, 1) * fragment_color.a;
+            vec3 final_mask = clamp(sample_value + vec3(shape_value), 0, 1) * fragment_color.a;
 
-        out_color = vec4(fragment_color.xyz, fragment_color.a);
-        out_mask = vec4(final_mask, fragment_color.a);
+            out_color = vec4(fragment_color.xyz, fragment_color.a);
+            out_mask = vec4(final_mask, fragment_color.a);
+        }
+        else
+        {
+            float sample_value = texture(sampler, uvw).r;
+            sample_value *= does_not_have_thickness;
+
+            vec2 center = uvw.xy;
+            float roundness = uvw.z;
+            float sd = rectangle_sd(xy - center, adjusted_half_dim);
+            sd = sd - roundness;
+            sd = abs(sd + half_thickness) - half_thickness;
+            float shape_value = 1.0 - smoothstep(-1.0, 0.0, sd);
+            shape_value *= has_thickness;
+
+            float final_mask = clamp(sample_value + shape_value, 0, 1) * fragment_color.a;
+
+            out_color = vec4(fragment_color.xyz, final_mask);
+        }
         }
         )foo";
 
@@ -153,7 +174,8 @@ X(vertex_ht)
 #define UniformList(X) \
 X(view_t) \
 X(view_m) \
-X(sampler)
+X(sampler) \
+X(use_clear_type)
 
 struct GL_Program{
     u32 program;
@@ -261,10 +283,6 @@ gl_render(Render_Target *t){
         
         glEnable(GL_SCISSOR_TEST);
         glEnable(GL_BLEND);
-        //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        //glBlendFunc(GL_SRC1_COLOR, GL_ONE_MINUS_SRC1_ALPHA);
-        glBlendFuncSeparate(GL_SRC1_COLOR, GL_ONE_MINUS_SRC1_COLOR,
-                            GL_ONE, GL_ONE_MINUS_SRC1_ALPHA);
         
         ////////////////////////////////
         
@@ -354,6 +372,17 @@ gl_render(Render_Target *t){
             };
             glUniformMatrix2fv(gpu_program.view_m, 1, GL_FALSE, m);
             glUniform1i(gpu_program.sampler, 0);
+
+            b32 use_clear_type = face->description.parameters.aa_mode == FaceAntialiasingMode_ClearType;
+
+            if (use_clear_type) {
+                glBlendFuncSeparate(GL_SRC1_COLOR, GL_ONE_MINUS_SRC1_COLOR,
+                                GL_ONE, GL_ONE_MINUS_SRC1_ALPHA);
+            } else {
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            }
+
+            glUniform1f(gpu_program.use_clear_type, use_clear_type ? 1.0f : 0.0f);
             
             glDrawArrays(GL_TRIANGLES, 0, vertex_count);
             glDisableVertexAttribArray(gpu_program.vertex_p);
