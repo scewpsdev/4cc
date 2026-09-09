@@ -513,7 +513,7 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
         // NOTE(yuval): Create a texture descriptor.
         MTLTextureDescriptor *texture_descriptor = [[MTLTextureDescriptor alloc] init];
         texture_descriptor.textureType = MTLTextureType2DArray;
-        texture_descriptor.pixelFormat = MTLPixelFormatR8Unorm;
+        texture_descriptor.pixelFormat = kind == TypeKind_RGB ? MTLPixelFormatRGB8Unorm : MTLPixelFormatR8Unorm;
         texture_descriptor.width = dim.x;
         texture_descriptor.height = dim.y;
         texture_descriptor.arrayLength = dim.z;

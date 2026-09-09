@@ -206,6 +206,24 @@
 
 ////////////////////////////////
 
+#ifndef GL_SRC1_COLOR
+#define GL_SRC1_COLOR 0x88F9
+#endif
+
+#ifndef GL_SRC1_ALPHA
+#define GL_SRC1_ALPHA 0x8589
+#endif
+
+#ifndef GL_ONE_MINUS_SRC1_COLOR
+#define GL_ONE_MINUS_SRC1_COLOR 0x88FA
+#endif
+
+#ifndef GL_ONE_MINUS_SRC1_ALPHA
+#define GL_ONE_MINUS_SRC1_ALPHA 0x88FB
+#endif
+
+////////////////////////////////
+
 typedef char GLchar;
 typedef short GLshort;
 typedef signed char GLbyte;

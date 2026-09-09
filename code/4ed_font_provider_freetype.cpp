@@ -14,6 +14,7 @@
 #undef internal
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include FT_LCD_FILTER_H
 #define internal static
 
 internal u32
@@ -22,10 +23,12 @@ ft__load_flags(b32 use_hinting){
     if (use_hinting){
         // NOTE(inso): FT_LOAD_TARGET_LIGHT does hinting only vertically, which looks nicer imo
         // maybe it could be exposed as an option for hinting, instead of just on/off.
-        ft_flags |= (FT_LOAD_FORCE_AUTOHINT | FT_LOAD_TARGET_LIGHT);
+        //ft_flags |= (FT_LOAD_FORCE_AUTOHINT | FT_LOAD_TARGET_LIGHT);
+        ft_flags |= FT_LOAD_FORCE_AUTOHINT | FT_LOAD_TARGET_LCD;
     }
     else{
-        ft_flags |= (FT_LOAD_NO_AUTOHINT | FT_LOAD_NO_HINTING);
+        //ft_flags |= (FT_LOAD_NO_AUTOHINT | FT_LOAD_NO_HINTING);
+        ft_flags |= FT_LOAD_NO_AUTOHINT | FT_LOAD_TARGET_LCD;
     }
     return(ft_flags);
 }
@@ -189,6 +192,8 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
     
     FT_Library ft;
     FT_Init_FreeType(&ft);
+
+    FT_Library_SetLcdFilter(ft, FT_LCD_FILTER_DEFAULT);
     
     FT_Face ft_face;
     FT_Error error = FT_New_Face(ft, (char*)file_name.str, 0, &ft_face);
@@ -253,9 +258,18 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
             error = FT_Load_Glyph(ft_face, i, load_flags);
             if (error == 0){
                 FT_GlyphSlot ft_glyph = ft_face->glyph;
-                Vec2_i32 dim = V2i32(ft_glyph->bitmap.width, ft_glyph->bitmap.rows);
+
+                i32 logical_width = ft_glyph->bitmap.width;
+                i32 bytes_per_pixel = 1;
+
+                if (ft_glyph->bitmap.pixel_mode == FT_PIXEL_MODE_LCD) {
+                    logical_width /= 3;
+                    bytes_per_pixel = 3;
+                }
+
+                Vec2_i32 dim = V2i32(logical_width, ft_glyph->bitmap.rows);
                 bitmap->dim = dim;
-                bitmap->data = push_array(arena, u8, dim.x*dim.y);
+                bitmap->data = push_array(arena, u8, dim.x * dim.y * bytes_per_pixel);
                 
                 face->bounds[i].xy_off.x0 = (f32)(ft_face->glyph->bitmap_left);
                 face->bounds[i].xy_off.y0 = (f32)(met->ascent - ft_face->glyph->bitmap_top);
@@ -296,6 +310,27 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
                             src_line += ft_glyph->bitmap.pitch;
                         }
                     }break;
+
+                    case FT_PIXEL_MODE_LCD:
+                    {
+                        u8 *src_line = ft_glyph->bitmap.buffer;
+                        if (ft_glyph->bitmap.pitch < 0){
+                            src_line = ft_glyph->bitmap.buffer + (-ft_glyph->bitmap.pitch)*(dim.y - 1);
+                        }
+                        u8 *dst = bitmap->data;
+                        for (i32 y = 0; y < dim.y; y += 1){
+                            u8 *src_pixel = src_line;
+                            for (i32 x = 0; x < dim.x; x += 1){
+                                dst[0] = src_pixel[0];
+                                dst[1] = src_pixel[1];
+                                dst[2] = src_pixel[2];
+
+                                dst += 3;
+                                src_pixel += 3;
+                            }
+                            src_line += ft_glyph->bitmap.pitch;
+                        }
+                    }break;
                     
                     default:
                     {
@@ -307,12 +342,9 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
             }
         }
         
-        u8 white_data[16] = {
-            0xFF, 0xFF, 0xFF, 0xFF,
-            0xFF, 0xFF, 0xFF, 0xFF,
-            0xFF, 0xFF, 0xFF, 0xFF,
-            0xFF, 0xFF, 0xFF, 0xFF,
-        };
+        u8 white_data[48] = {};
+        for (u32 i = 0; i < 48; i++)
+            white_data[i] = 0xFF;
         
         Bitmap white = {};
         white.dim = V2i32(4, 4);
@@ -327,7 +359,7 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         }
         ft__bad_rect_store_finish(&pack);
         
-        Texture_Kind texture_kind = TextureKind_Mono;
+        Texture_Kind texture_kind = TextureKind_RGB;
         u32 texture = graphics_get_texture(pack.dim, texture_kind);
         
         /* NOTE simon (06/01/25): This assumes that every platforms don't use 0 as a valid texture id.

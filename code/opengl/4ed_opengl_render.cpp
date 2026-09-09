@@ -31,7 +31,7 @@ gl__get_texture(Vec3_i32 dim, Texture_Kind texture_kind){
     u32 tex = 0;
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D_ARRAY, tex);
-    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_R8, dim.x, dim.y, dim.z, 0, GL_RED, GL_UNSIGNED_BYTE, 0);
+    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, texture_kind == TextureKind_RGB ? GL_RGB8 : GL_R8, dim.x, dim.y, dim.z, 0, texture_kind == TextureKind_RGB ? GL_RGB : GL_RED, GL_UNSIGNED_BYTE, 0);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -48,7 +48,7 @@ gl__fill_texture(Texture_Kind texture_kind, u32 texture, Vec3_i32 p, Vec3_i32 di
     }
     if (dim.x > 0 && dim.y > 0 && dim.z > 0){
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, p.x, p.y, p.z, dim.x, dim.y, dim.z, GL_RED, GL_UNSIGNED_BYTE, data);
+        glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, p.x, p.y, p.z, dim.x, dim.y, dim.z, texture_kind == TextureKind_RGB ? GL_RGB : GL_RED, GL_UNSIGNED_BYTE, data);
     }
     return(result);
 }
@@ -68,12 +68,12 @@ gl__error_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsiz
         
         default:
         {
-            InvalidPath;
+            //InvalidPath;
         }break;
     }
 }
 
-char *gl__header = R"foo(#version 150
+char *gl__header = R"foo(#version 330
         )foo";
 
 char *gl__vertex = R"foo(
@@ -110,8 +110,11 @@ char *gl__fragment = R"foo(
         smooth in vec2 xy;
         smooth in vec2 adjusted_half_dim;
         smooth in float half_thickness;
+
         uniform sampler2DArray sampler;
-        out vec4 out_color;
+
+        layout (location = 0, index = 0) out vec4 out_color;
+        layout (location = 0, index = 1) out vec4 out_mask;
 
         float rectangle_sd(vec2 p, vec2 b){
         vec2 d = abs(p) - b;
@@ -123,7 +126,7 @@ char *gl__fragment = R"foo(
         float has_thickness = (step(0.49, half_thickness));
         float does_not_have_thickness = 1.0 - has_thickness;
 
-        float sample_value = texture(sampler, uvw).r;
+        vec3 sample_value = texture(sampler, uvw).rgb;
         sample_value *= does_not_have_thickness;
 
         vec2 center = uvw.xy;
@@ -134,7 +137,10 @@ char *gl__fragment = R"foo(
         float shape_value = 1.0 - smoothstep(-1.0, 0.0, sd);
         shape_value *= has_thickness;
 
-        out_color = vec4(fragment_color.xyz, fragment_color.a*(sample_value + shape_value));
+        vec3 final_mask = clamp(sample_value + vec3(shape_value), 0, 1) * fragment_color.a;
+
+        out_color = vec4(fragment_color.xyz, fragment_color.a);
+        out_mask = vec4(final_mask, fragment_color.a);
         }
         )foo";
 
@@ -255,7 +261,10 @@ gl_render(Render_Target *t){
         
         glEnable(GL_SCISSOR_TEST);
         glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        //glBlendFunc(GL_SRC1_COLOR, GL_ONE_MINUS_SRC1_ALPHA);
+        glBlendFuncSeparate(GL_SRC1_COLOR, GL_ONE_MINUS_SRC1_COLOR,
+                            GL_ONE, GL_ONE_MINUS_SRC1_ALPHA);
         
         ////////////////////////////////
         

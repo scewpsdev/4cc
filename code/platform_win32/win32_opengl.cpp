@@ -213,7 +213,7 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
             
             i32 context_attrib_list[] = {
                 /*0*/WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
-                /*2*/WGL_CONTEXT_MINOR_VERSION_ARB, 2,
+                /*2*/WGL_CONTEXT_MINOR_VERSION_ARB, 3,
                 /*4*/WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
 #if GL_DEBUG_MODE
                 |WGL_CONTEXT_DEBUG_BIT_ARB
