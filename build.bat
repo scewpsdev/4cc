@@ -16,7 +16,7 @@ set opts=/nologo /FC /Zi /I%src_root% /I%custom_root%
 
 if not exist "%build_root%" mkdir %build_root%
 pushd %build_root%
-call cl %opts% %src_root%\4ed_build.cpp /Febuild
+call cl %opts% %src_root%\4ed_build.cpp /Febuild /O2
 popd
 
 if %ERRORLEVEL% neq 0 goto END
