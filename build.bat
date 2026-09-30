@@ -12,7 +12,7 @@ set build_root=%cd%\build
 rem If the user want's 32 bits they need to setup MSVC before calling the script.
 call %custom_root%\bin\setup_cl_x64.bat
 
-set opts=/nologo /FC /Zi /I%src_root% /I%custom_root%
+set opts=/nologo /FC /Zi /O2 /I%src_root% /I%custom_root%
 
 if not exist "%build_root%" mkdir %build_root%
 pushd %build_root%

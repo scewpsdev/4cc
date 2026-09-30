@@ -224,7 +224,7 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         met->text_height = f32_ceil32(ft_face->size->metrics.height/64.f);
 
         f32 font_text_height = met->ascent - met->descent;
-        f32 font_line_skip = met->text_height - font_text_height;
+        f32 font_line_skip = met->text_height - font_text_height + f32_floor32(font_text_height / 5);
         
         met->line_skip   = clamp_bot(1, font_line_skip);
         met->text_height = met->ascent - met->descent;
@@ -285,7 +285,24 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
                 switch (ft_glyph->bitmap.pixel_mode){
                     case FT_PIXEL_MODE_MONO:
                     {
-                        NotImplemented;
+                        u8 *src_line = ft_glyph->bitmap.buffer;
+                        if (ft_glyph->bitmap.pitch < 0){
+                            src_line = ft_glyph->bitmap.buffer + (-ft_glyph->bitmap.pitch)*(dim.y - 1);
+                        }
+                        u8 *dst = bitmap->data;
+                        for (i32 y = 0; y < dim.y; y += 1){
+                            u8 *src_pixel = src_line;
+                            for (i32 x = 0; x < dim.x; x += 1){
+                                u8 s = *src_pixel;
+                                if (s > 0){
+                                    s = 255;
+                                }
+                                *dst = s;
+                                dst += 1;
+                                src_pixel += 1;
+                            }
+                            src_line += ft_glyph->bitmap.pitch;
+                        }
                     }break;
                     
                     case FT_PIXEL_MODE_GRAY:
