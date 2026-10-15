@@ -19,16 +19,20 @@
 
 internal u32
 ft__load_flags(b32 use_hinting, Face_Antialiasing_Mode aa_mode){
-    u32 ft_flags = FT_LOAD_RENDER;
+    u32 ft_flags = FT_LOAD_DEFAULT;
+    
+    ft_flags |= FT_LOAD_RENDER;
 
     if (use_hinting) ft_flags |= FT_LOAD_FORCE_AUTOHINT;
-    else ft_flags |= FT_LOAD_NO_AUTOHINT | FT_LOAD_NO_AUTOHINT;
+    ft_flags |= FT_LOAD_COLOR;
+
+    if (aa_mode == FaceAntialiasingMode_ClearType) ft_flags |= FT_LOAD_TARGET_LCD;
+    else ft_flags |= FT_LOAD_TARGET_NORMAL;
+    //else if (use_hinting) ft_flags |= FT_LOAD_TARGET_LIGHT;
+    //else ft_flags |= FT_LOAD_NO_AUTOHINT | FT_LOAD_NO_HINTING;
 
     // NOTE(inso): FT_LOAD_TARGET_LIGHT does hinting only vertically, which looks nicer imo
     // maybe it could be exposed as an option for hinting, instead of just on/off.
-
-    if (aa_mode == FaceAntialiasingMode_ClearType) ft_flags |= FT_LOAD_TARGET_LCD;
-    else if (use_hinting) ft_flags |= FT_LOAD_TARGET_LIGHT;
 
     return(ft_flags);
 }
@@ -194,7 +198,7 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
     FT_Init_FreeType(&ft);
 
     if (description->parameters.aa_mode == FaceAntialiasingMode_ClearType) {
-        FT_Library_SetLcdFilter(ft, FT_LCD_FILTER_DEFAULT);
+        FT_Library_SetLcdFilter(ft, FT_LCD_FILTER_LIGHT);
     }
     
     FT_Face ft_face;
@@ -208,10 +212,14 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         u32 pt_size = (u32)(pt_size_unscaled*scale_factor);
         b32 hinting = description->parameters.hinting;
         
-        FT_Size_RequestRec_ size = {};
-        size.type   = FT_SIZE_REQUEST_TYPE_NOMINAL;
-        size.height = (pt_size << 6);
-        FT_Request_Size(ft_face, &size);
+        //FT_Size_RequestRec_ size = {};
+        //size.type   = FT_SIZE_REQUEST_TYPE_NOMINAL;
+        //size.height = (pt_size << 6);
+        //FT_Request_Size(ft_face, &size);
+
+        FT_Set_Char_Size(ft_face, 0, pt_size * 64, 96, 96);
+        //FT_Set_Char_Size(ft_face, 0, pt_size * 64, 72, 72);
+        //FT_Set_Pixel_Sizes(ft_face, 0, pt_size);
         
         face->description.font.file_name = file_name;
         face->description.parameters = description->parameters;
@@ -224,11 +232,13 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         met->text_height = f32_ceil32(ft_face->size->metrics.height/64.f);
 
         f32 font_text_height = met->ascent - met->descent;
-        f32 font_line_skip = met->text_height - font_text_height + f32_floor32(font_text_height / 5);
+        f32 font_line_skip = met->text_height - font_text_height;
+        font_line_skip += f32_floor32(font_text_height / 5);
+        font_line_skip = clamp_bot(1, font_line_skip);
         
-        met->line_skip   = clamp_bot(1, font_line_skip);
-        met->text_height = met->ascent - met->descent;
-        met->line_height = met->text_height + met->line_skip;
+        met->line_skip   = font_line_skip;
+        met->text_height = font_text_height;
+        met->line_height = font_text_height + font_line_skip;
         
         {
             f32 real_over_notional = met->line_height/(f32)ft_face->height;
@@ -278,9 +288,9 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
                 bitmap->data = push_array(arena, u8, dim.x * dim.y * bytes_per_pixel);
                 
                 face->bounds[i].xy_off.x0 = (f32)(ft_face->glyph->bitmap_left);
-                face->bounds[i].xy_off.y0 = (f32)(met->ascent - ft_face->glyph->bitmap_top);
+                face->bounds[i].xy_off.y0 = (f32)f32_round32(met->ascent - ft_face->glyph->bitmap_top);
                 face->bounds[i].xy_off.x1 = (f32)(face->bounds[i].xy_off.x0 + dim.x);
-                face->bounds[i].xy_off.y1 = (f32)(face->bounds[i].xy_off.y0 + dim.y);
+                face->bounds[i].xy_off.y1 = (f32)f32_round32(face->bounds[i].xy_off.y0 + dim.y);
                 
                 switch (ft_glyph->bitmap.pixel_mode){
                     case FT_PIXEL_MODE_MONO:
