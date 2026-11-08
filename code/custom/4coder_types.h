@@ -515,6 +515,7 @@ struct Face_Load_Parameters{
     b8 italic;
     b8 underline;
     b8 hinting;
+    u32 dpi;
 };
 
 api(custom)

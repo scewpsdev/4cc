@@ -268,6 +268,7 @@ App_Init_Sig(app_init){
         Face_Description description = {};
         description.font.file_name = full_path;
         description.parameters.pt_size = 12;
+        description.parameters.dpi = 72;
         Face *new_face = font_set_new_face(&models->font_set, &description);
         if (new_face == 0){
             system_error_box("Could not load the required fallback font");

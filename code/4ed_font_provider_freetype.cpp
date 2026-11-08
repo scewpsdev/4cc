@@ -217,8 +217,9 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         //size.height = (pt_size << 6);
         //FT_Request_Size(ft_face, &size);
 
-        //FT_Set_Char_Size(ft_face, 0, pt_size * 64, 96, 96);
-        FT_Set_Char_Size(ft_face, 0, pt_size * 64, 72, 72);
+        int dpi = description->parameters.dpi;
+        FT_Set_Char_Size(ft_face, 0, pt_size * 64, dpi, dpi);
+        //FT_Set_Char_Size(ft_face, 0, pt_size * 64, 72, 72);
         //FT_Set_Pixel_Sizes(ft_face, 0, pt_size);
         
         face->description.font.file_name = file_name;
